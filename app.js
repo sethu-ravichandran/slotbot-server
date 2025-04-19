@@ -1,6 +1,6 @@
 import express from 'express'
 import mongoose from 'mongoose'
-
+import cors from 'cors'
 import dotenv from 'dotenv'
 import cookieParser from 'cookie-parser'
 
@@ -14,11 +14,27 @@ import aiRoutes from './routes/ai.js'
 dotenv.config()
 
 const app = express()
-const PORT = process.env.PORT || 3500
+
+const allowedOrigins = [
+  'http://localhost:5173',
+  'https://slotbot-client.vercel.app'
+];
+
+app.use(cors({
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true 
+}));
+
+
 
 app.use(express.json())
 app.use(cookieParser())
-
 
 mongoose.connect(process.env.MONGODB_URI)
   .then(() => console.log('Connected to MongoDB'))
@@ -47,8 +63,6 @@ app.use((err, req, res, next) => {
   })
 })
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`)
-})
+
 
 export default app;
