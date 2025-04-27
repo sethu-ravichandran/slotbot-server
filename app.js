@@ -15,21 +15,10 @@ dotenv.config()
 
 const app = express()
 
-const allowedOrigins = [
-  'http://localhost:5173',
-  'https://slotbot-client.vercel.app'
-];
-
 app.use(cors({
-  origin: function (origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
+  origin: 'http://localhost:5173',
   credentials: true 
-}));
+}))
 
 
 
@@ -62,7 +51,6 @@ app.use((err, req, res, next) => {
     error: process.env.NODE_ENV === 'development' ? err.message : undefined
   })
 })
-
 
 
 export default app;

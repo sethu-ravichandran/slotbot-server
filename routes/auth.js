@@ -33,13 +33,14 @@ router.post('/register', async (req, res) => {
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
+
+    
     
     // Set token as cookie
     res.cookie('token', token, {
       httpOnly: true,
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-      secure: process.env.NODE_ENV === 'production'
+      sameSite: 'lax'
     });
     
     res.status(201).json({
@@ -49,7 +50,7 @@ router.post('/register', async (req, res) => {
         name: user.name,
         email: user.email,
         role: user.role
-      }
+      },
     });
   } catch (error) {
     console.error('Registration error:', error);
@@ -77,7 +78,7 @@ router.post('/login', async (req, res) => {
     // Generate JWT token
     const token = jwt.sign(
       { id: user._id, email: user.email, role: user.role },
-      process.env.JWT_SECRET || 'your_jwt_secret',
+      process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
     
@@ -85,8 +86,7 @@ router.post('/login', async (req, res) => {
     res.cookie('token', token, {
       httpOnly: true,
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-      secure: process.env.NODE_ENV === 'production'
+      sameSite: 'lax'
     });
     
     res.status(200).json({

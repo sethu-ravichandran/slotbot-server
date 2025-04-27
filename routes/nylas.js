@@ -2,25 +2,27 @@ import express from 'express';
 import Nylas from 'nylas';
 import User from '../models/User.js';
 import { authenticateUser } from '../middleware/auth.js';
+import environmentVariables from '../utils/envConfig.js'
 
 const router = express.Router();
 
 const config = {
-  clientId: process.env.NYLAS_CLIENT_ID,
-  clientSecret: process.env.NYLAS_CLIENT_SECRET,
+  clientId: environmentVariables.NYLAS_CLIENT_ID,
+  clientSecret: environmentVariables.NYLAS_CLIENT_SECRET,
+  redirectUri: environmentVariables.NYLAS_REDIRECT_URI
 }
 
 const nylas = new Nylas(config);
 
 
-// Connect user's calendar
 router.post('/connect', authenticateUser, async (req, res) => {
   try {
-    const redirectURI = `${process.env.FRONTEND_URL}/api/nylas/callback`;
-    const authUrl = Nylas.urlForAuthentication({
-      redirectURI,
-      scopes: ['calendar', 'email.send'],
-    });
+    const authUrl = nylas.auth.urlForOAuth2({
+      clientId: config.clientId,
+      provider: 'google',
+      redirectUri: config.redirectUri,
+      loginHint: req.user.email
+    })
     
     res.status(200).json({ authUrl });
   } catch (error) {
@@ -29,7 +31,7 @@ router.post('/connect', authenticateUser, async (req, res) => {
   }
 });
 
-// Nylas OAuth callback
+
 router.get('/callback', async (req, res) => {
   try {
     const { code, state } = req.query;
@@ -38,50 +40,69 @@ router.get('/callback', async (req, res) => {
       return res.status(400).json({ message: 'Authorization code is required' });
     }
     
-    const tokens = await Nylas.exchangeCodeForToken(code);
-    const { accessToken, emailAddress } = tokens;
+    const response = await nylas.auth.exchangeCodeForToken({
+      clientId: environmentVariables.NYLAS_CLIENT_ID,
+      clientSecret:environmentVariables.NYLAS_CLIENT_SECRET,
+      redirectUri: environmentVariables.NYLAS_REDIRECT_URI,
+      code
+    });
+
+    const { accessToken, email, grantId } = response;
+
     
-    // Update user with Nylas access token
-    const user = await User.findOne({ email: emailAddress });
+    
+    const user = await User.findOne({ email: email });
     if (user) {
       user.nylasAccessToken = accessToken;
+      user.grantId = grantId;
       await user.save();
     }
     
-    res.redirect(`${process.env.FRONTEND_URL}/dashboard?nylas_connected=true`);
+    res.redirect(`${process.env.FRONTEND_URL}/schedule?nylas_connected=true`);
   } catch (error) {
     console.error('Nylas callback error:', error);
-    res.redirect(`${process.env.FRONTEND_URL}/dashboard?nylas_connected=false`);
+    res.redirect(`${process.env.FRONTEND_URL}/schedule?nylas_connected=false`);
   }
 });
 
-// Get user's calendar events
+
 router.get('/events', authenticateUser, async (req, res) => {
+
   try {
     const user = await User.findById(req.user.id);
     if (!user || !user.nylasAccessToken) {
       return res.status(400).json({ message: 'Nylas not connected' });
     }
-    
-    const nylas = Nylas.with(user.nylasAccessToken);
+
+  const nylasConfig = {
+      clientId: environmentVariables.NYLAS_CLIENT_ID,
+      apiKey: environmentVariables.NYLAS_CLIENT_SECRET,
+      redirectUri: environmentVariables.NYLAS_REDIRECT_URI,
+      apiUri: environmentVariables.NYLAS_API_URI
+    }
+
+
+    const nylas = new Nylas(nylasConfig)
     
     const { startDate, endDate } = req.query;
     const start = startDate ? new Date(startDate) : new Date();
-    const end = endDate ? new Date(endDate) : new Date(start.getTime() + 7 * 24 * 60 * 60 * 1000); // Default to 1 week
+    const end = endDate ? new Date(endDate) : new Date(start.getTime() + 7 * 24 * 60 * 60 * 1000); 
     
     const events = await nylas.events.list({
-      startsAfter: Math.floor(start.getTime() / 1000),
-      endsBefore: Math.floor(end.getTime() / 1000),
-    });
-    
+      identifier: user.grantId,
+      queryParams: {
+        calendarId: 'primary',
+      }
+    })
     res.status(200).json({ events });
+
   } catch (error) {
     console.error('Get Nylas events error:', error);
     res.status(500).json({ message: 'Failed to fetch calendar events' });
   }
 });
 
-// Create a calendar event
+
 router.post('/events', authenticateUser, async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
@@ -112,7 +133,7 @@ router.post('/events', authenticateUser, async (req, res) => {
   }
 });
 
-// Update a calendar event
+
 router.put('/events/:id', authenticateUser, async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
@@ -128,7 +149,7 @@ router.put('/events/:id', authenticateUser, async (req, res) => {
       return res.status(404).json({ message: 'Event not found' });
     }
     
-    // Update event properties
+    
     event.title = title;
     event.description = description;
     event.location = location;
@@ -147,7 +168,7 @@ router.put('/events/:id', authenticateUser, async (req, res) => {
   }
 });
 
-// Delete a calendar event
+
 router.delete('/events/:id', authenticateUser, async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
