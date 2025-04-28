@@ -52,6 +52,8 @@ router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body
 
+    console.log('Login route hit with data:', { email: req.body.email, passwordProvided: !!req.body.password });
+
     if (!email || !password) {
       return res
         .status(400)
@@ -71,6 +73,8 @@ router.post('/login', async (req, res) => {
       }
     }
 
+    console.log('User found:', { userId: user._id, role });
+
     if (!user) {
       return res.status(401).json({ message: 'Invalid credentials' })
     }
@@ -86,13 +90,18 @@ router.post('/login', async (req, res) => {
       { expiresIn: '7d' }
     )
 
+    console.log('JWT_SECRET available:', !!environmentVariables.JWT_SECRET);
+
     res.cookie('token', token, {
       httpOnly: true,
       secure: environmentVariables.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: 7 * 24 * 60 * 60 * 1000,
-      path: '/' 
+      path: '/' ,
+      domain: '.vercel.app'
     })
+
+    console.log(token)
 
     res.status(200).json({
       message: 'Login successful',
