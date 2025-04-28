@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken'
 import Candidate from '../models/Candidate.js'
 import Recruiter from '../models/Recruiter.js'
 import { authenticateUser } from '../middleware/auth.js'
+import environmentVariables from '../utils/envConfig.js'
 
 const router = express.Router()
 
@@ -81,14 +82,16 @@ router.post('/login', async (req, res) => {
 
     const token = jwt.sign(
       { id: user._id, email: user.email, role },
-      process.env.JWT_SECRET,
+      environmentVariables.JWT_SECRET,
       { expiresIn: '7d' }
     )
 
     res.cookie('token', token, {
       httpOnly: true,
-      maxAge: 7 * 24 * 60 * 60 * 1000, 
-      sameSite: 'lax'
+      secure: environmentVariables.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+      path: '/' 
     })
 
     res.status(200).json({

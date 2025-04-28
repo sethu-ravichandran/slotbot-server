@@ -3,6 +3,7 @@ import nylas, { nylasConfig } from '../utils/nylasConfig.js'
 import { authenticateUser } from '../middleware/auth.js'
 import Recruiter from '../models/Recruiter.js'
 import Candidate from '../models/Candidate.js'
+import environmentVariables from '../utils/envConfig.js'
 
 const router = express.Router()
 
@@ -56,10 +57,10 @@ router.get('/callback', async (req, res) => {
       await user.save()
     }
 
-    res.redirect(`${process.env.FRONTEND_URL}/schedule?nylas_connected=true`)
+    res.redirect(`${environmentVariables.FRONTEND_URL}/schedule?nylas_connected=true`)
   } catch (error) {
     console.error('Nylas callback error:', error)
-    res.redirect(`${process.env.FRONTEND_URL}/schedule?nylas_connected=false`)
+    res.redirect(`${environmentVariables.FRONTEND_URL}/schedule?nylas_connected=false`)
   }
 })
 
