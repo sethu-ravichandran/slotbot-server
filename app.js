@@ -1,7 +1,7 @@
 import express from 'express'
 import mongoose from 'mongoose'
 import cors from 'cors'
-import dotenv from 'dotenv'
+import environmentVariables from './utils/envConfig.js'
 import cookieParser from 'cookie-parser'
 
 import authRoutes from './routes/auth.js'
@@ -11,23 +11,22 @@ import scheduleRoutes from './routes/schedule.js'
 import nylasRoutes from './routes/nylas.js'
 import aiRoutes from './routes/ai.js'
 
-dotenv.config()
-
 const app = express()
 
-app.use(cors({
-  origin: 'http://localhost:5173',
-  credentials: true 
-}))
-
-
+app.use(
+  cors({
+    origin: 'http://localhost:5173',
+    credentials: true
+  })
+)
 
 app.use(express.json())
 app.use(cookieParser())
 
-mongoose.connect(process.env.MONGODB_URI)
+mongoose
+  .connect(environmentVariables.MONGODB_URI)
   .then(() => console.log('Connected to MongoDB'))
-  .catch(err => console.error('MongoDB connection error:', err));
+  .catch((err) => console.error('MongoDB connection error:', err))
 
 app.use('/api/auth', authRoutes)
 app.use('/api/meetings', meetingRoutes)
@@ -36,21 +35,18 @@ app.use('/api/schedule', scheduleRoutes)
 app.use('/api/nylas', nylasRoutes)
 app.use('/api/ai', aiRoutes)
 
-
 app.get('/api/health', (req, res) => {
   res.status(200).json({ status: 'ok' })
-});
+})
 
-app.get("/", (req, res) => res.send("Express on Vercel"));
-
+app.get('/', (req, res) => res.send('Express on Vercel'))
 
 app.use((err, req, res, next) => {
   console.error(err.stack)
-  res.status(500).json({ 
+  res.status(500).json({
     message: 'Something went wrong!',
     error: process.env.NODE_ENV === 'development' ? err.message : undefined
   })
 })
 
-
-export default app;
+export default app
